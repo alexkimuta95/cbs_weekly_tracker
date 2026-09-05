@@ -22,7 +22,17 @@ export async function getWeeklyUpdate(userId, weekStart) {
 
   return response.json();
 }
+export async function getWeeklyUpdates(weekStart) {
+  const response = await fetch(
+    `${API_URL}/weekly-updates?week_start=${weekStart}`
+  );
 
+  if (!response.ok) {
+    throw new Error("Failed to fetch weekly updates");
+  }
+
+  return response.json();
+}
 
 export async function saveWeeklyUpdate(data) {
   const response = await fetch(`${API_URL}/weekly-updates`, {

@@ -22,7 +22,7 @@ import {
 } from "@mui/icons-material";
 
 import StatCard from "../components/StatCard";
-import { getUsers } from "../services/api";
+import { getUsers, getIssues } from "../services/api";
 
 function Dashboard() {
   const [users, setUsers] = useState([]);
@@ -31,20 +31,54 @@ function Dashboard() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
-  useEffect(() => {
-    async function loadUsers() {
-      try {
-        const data = await getUsers();
-        setUsers(data);
-      } catch (err) {
-        setError(err.message);
-      } finally {
-        setLoading(false);
-      }
-    }
+//   useEffect(() => {
+//     async function loadUsers() {
+//       try {
+//         const data = await getUsers();
+//         setUsers(data);
+//       } catch (err) {
+//         setError(err.message);
+//       } finally {
+//         setLoading(false);
+//       }
+//     }
 
-    loadUsers();
-  }, []);
+//     loadUsers();
+
+//   }, []);
+useEffect(() => {
+  async function loadDashboard() {
+    try {
+      const [usersData, issuesData] = await Promise.all([
+        getUsers(),
+        getIssues(),
+      ]);
+       const members = usersData.filter(
+        (user) => user.role?.toLowerCase() === "member"
+      );
+
+      setUsers(members);
+      setIssues(issuesData);
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  loadDashboard();
+}, []);
+const completedIssues = issues.filter(
+  (issue) => issue.status?.toLowerCase() === "completed"
+);
+
+const pendingIssues = issues.filter(
+  (issue) => issue.status?.toLowerCase() === "pending"
+);
+
+const blockedIssues = issues.filter(
+  (issue) => issue.status?.toLowerCase() === "blocked"
+);
 
   return (
     <Box sx={{ p: 4 }}>
@@ -76,7 +110,7 @@ function Dashboard() {
         <Grid size={{ xs: 12, sm: 6, md: 3 }}>
           <StatCard
             title="Completed"
-            value="0"
+            value={completedIssues.length}
             icon={<CheckCircle fontSize="large" />}
           />
         </Grid>
@@ -84,7 +118,7 @@ function Dashboard() {
         <Grid size={{ xs: 12, sm: 6, md: 3 }}>
           <StatCard
             title="Pending"
-            value="0"
+            value={pendingIssues.length}
             icon={<PendingActions fontSize="large" />}
           />
         </Grid>
@@ -92,7 +126,7 @@ function Dashboard() {
         <Grid size={{ xs: 12, sm: 6, md: 3 }}>
           <StatCard
             title="Issues"
-            value="0"
+            value={issues.length}
             icon={<Warning fontSize="large" />}
           />
         </Grid>
@@ -139,21 +173,40 @@ function Dashboard() {
             </TableHead>
 
             <TableBody>
-              {users.map((user) => (
-                <TableRow key={user.id}>
-                  <TableCell>{user.name}</TableCell>
+             {users.map((user) => {
+        const userIssues = issues.filter(
+          (issue) => Number(issue.user_id) === Number(user.id)
+        );
 
-                  <TableCell>
-                    {user.role}
-                  </TableCell>
+        const completed = userIssues.filter(
+          (issue) =>
+            issue.status?.toLowerCase() === "completed"
+        ).length;
 
-                  <TableCell>0</TableCell>
+        const pending = userIssues.filter(
+          (issue) =>
+            issue.status?.toLowerCase() === "pending"
+        ).length;
 
-                  <TableCell>0</TableCell>
+        const blocked = userIssues.filter(
+          (issue) =>
+            issue.status?.toLowerCase() === "blocked"
+        ).length;
 
-                  <TableCell>0</TableCell>
-                </TableRow>
-              ))}
+        return (
+          <TableRow key={user.id}>
+            <TableCell>{user.name}</TableCell>
+
+            <TableCell>{user.role}</TableCell>
+
+            <TableCell>{completed}</TableCell>
+
+            <TableCell>{pending}</TableCell>
+
+            <TableCell>{blocked}</TableCell>
+          </TableRow>
+        );
+      })}
             </TableBody>
           </Table>
         )}

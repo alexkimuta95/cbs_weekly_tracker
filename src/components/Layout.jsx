@@ -8,7 +8,9 @@ function Layout({ children }) {
 
       <Box
         sx={{
-          flexGrow: 1,
+         flexGrow: 1,
+        marginLeft: "240px",
+         minHeight: "100vh",
           backgroundColor: "#f5f7fa",
         }}
       >

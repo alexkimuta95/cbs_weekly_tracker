@@ -57,6 +57,9 @@ function Sidebar() {
       sx={{
         width: 240,
         minHeight: "100vh",
+        position:"fixed",
+        top:0,
+        left:0,
         backgroundColor: "#172033",
         color: "white",
         paddingTop: 3,

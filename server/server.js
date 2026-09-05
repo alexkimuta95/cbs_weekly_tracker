@@ -34,47 +34,113 @@ app.get("/api/weekly-updates", async (req, res) => {
   try {
     const { user_id, week_start } = req.query;
 
-    if (!user_id || !week_start) {
+    if (!week_start) {
       return res.status(400).json({
-        message: "user_id and week_start are required",
+        message: "week_start is required",
       });
     }
 
-    const updateResult = await pool.query(
-      `
-      SELECT *
-      FROM weekly_updates
-      WHERE user_id = $1
-      AND week_start = $2
-      `,
-      [user_id, week_start]
-    );
+    // =====================================================
+    // 1. If user_id is provided:
+    //    Return one member's detailed weekly update
+    // =====================================================
+    if (user_id) {
+      const updateResult = await pool.query(
+        `
+        SELECT *
+        FROM weekly_updates
+        WHERE user_id = $1
+          AND week_start = $2
+        `,
+        [user_id, week_start]
+      );
 
-    if (updateResult.rows.length === 0) {
-      return res.json(null);
+      if (updateResult.rows.length === 0) {
+        return res.json(null);
+      }
+
+      const update = updateResult.rows[0];
+
+      const tasksResult = await pool.query(
+        `
+        SELECT *
+        FROM tasks
+        WHERE weekly_update_id = $1
+        ORDER BY created_at ASC
+        `,
+        [update.id]
+      );
+
+      return res.json({
+        ...update,
+        tasks: tasksResult.rows,
+      });
     }
 
-    const update = updateResult.rows[0];
-
-    const tasksResult = await pool.query(
+    // =====================================================
+    // 2. No user_id:
+    //    Return all active team members and their status
+    // =====================================================
+    const result = await pool.query(
       `
-      SELECT *
-      FROM tasks
-      WHERE weekly_update_id = $1
-      ORDER BY created_at ASC
+      SELECT
+        u.id AS user_id,
+        u.name,
+        u.role,
+        wu.id AS weekly_update_id,
+        wu.week_start,
+        wu.week_end,
+        wu.summary,
+        wu.created_at,
+        wu.updated_at,
+
+        CASE
+          WHEN wu.id IS NOT NULL THEN 'Submitted'
+          ELSE 'Pending'
+        END AS submission_status,
+
+        COUNT(t.id) AS task_count
+
+      FROM users u
+
+      LEFT JOIN weekly_updates wu
+        ON wu.user_id = u.id
+        AND wu.week_start = $1
+
+      LEFT JOIN tasks t
+        ON t.weekly_update_id = wu.id
+
+      WHERE u.active = TRUE
+        AND UPPER(COALESCE(u.role, '')) = 'MEMBER'
+
+      GROUP BY
+        u.id,
+        u.name,
+        u.role,
+        wu.id,
+        wu.week_start,
+        wu.week_end,
+        wu.summary,
+        wu.created_at,
+        wu.updated_at
+
+      ORDER BY u.name ASC
       `,
-      [update.id]
+      [week_start]
     );
 
-    res.json({
-      ...update,
-      tasks: tasksResult.rows,
-    });
+    res.json(
+      result.rows.map((row) => ({
+        ...row,
+        task_count: Number(row.task_count),
+      }))
+    );
+
   } catch (error) {
-    console.error("GET WEEKLY UPDATE ERROR:", error);
+    console.error("GET WEEKLY UPDATES ERROR:", error);
 
     res.status(500).json({
-      message: "Failed to retrieve weekly update",
+      message: "Failed to retrieve weekly updates",
       error: error.message,
     });
   }
